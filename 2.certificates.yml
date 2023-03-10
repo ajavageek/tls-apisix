@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tls
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: etcd-server
+  namespace: tls
+spec:
+  secretName: etcd-secret
+  isCA: false
+  usages:
+    - client auth
+    - server auth
+  dnsNames:
+    - etcd
+  issuerRef:
+    name: ca-issuer
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: apisix-client
+  namespace: tls
+spec:
+  secretName: apisix-client-secret
+  isCA: false
+  usages:
+    - client auth
+  emailAddresses:
+    - apisix@apache.org
+  issuerRef:
+    name: ca-issuer
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: apisix-server
+  namespace: tls
+spec:
+  secretName: apisix-server-secret
+  isCA: false
+  usages:
+    - server auth
+  dnsNames:
+    - admin
+    - apisix
+  issuerRef:
+    name: ca-issuer
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: curl-client
+  namespace: tls
+spec:
+  secretName: curl-secret
+  isCA: false
+  usages:
+    - client auth
+  emailAddresses:
+    - curl@localhost.dev
+  issuerRef:
+    name: ca-issuer
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: upstream-server
+  namespace: tls
+spec:
+  secretName: upstream-secret
+  isCA: false
+  usages:
+    - server auth
+  dnsNames:
+    - upstream
+  issuerRef:
+    name: ca-issuer
+    kind: Issuer

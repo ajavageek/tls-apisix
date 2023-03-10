@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tls
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: tls
+data:
+  nginx.conf: >-
+    events {
+      worker_connections 1024;
+    }
+    http {
+      server {
+        listen              443 ssl;
+        server_name         upstream;
+        ssl_certificate     /etc/ssl/private/tls.crt;
+        ssl_certificate_key /etc/ssl/private/tls.key;
+
+        root /www/data;
+        location / {
+            index index.json;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-content
+  namespace: tls
+data:
+  index.json: |
+    { "hello": "world" }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: upstream
+  namespace: tls
+  labels:
+    role: upstream
+spec:
+  containers:
+    - name: upstream
+      image: nginx:1.23-alpine
+      ports:
+        - containerPort: 443
+      volumeMounts:
+        - name: config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: content
+          mountPath: /www/data/index.json
+          subPath: index.json
+        - name: ssl
+          mountPath: /etc/ssl/private
+  volumes:
+    - name: config
+      configMap:
+        name: nginx-config
+    - name: ssl
+      secret:
+        secretName: upstream-secret
+    - name: content
+      configMap:
+        name: nginx-content
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: upstream
+  namespace: tls
+spec:
+  ports:
+    - port: 443
+  selector:
+    role: upstream

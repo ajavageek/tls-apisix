@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tls
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-config
+  namespace: tls
+data:
+  config.yaml: >-
+    apisix:
+      ssl:
+        ssl_trusted_certificate: /etc/ssl/certs/ca.crt
+    deployment:
+      etcd:
+        host:
+          - https://etcd:2379
+        tls:
+          cert: /etc/ssl/certs/tls.crt
+          key: /etc/ssl/certs/tls.key
+      admin:
+        allow_admin:
+          - 0.0.0.0/0
+        https_admin: true
+        admin_api_mtls:
+          admin_ssl_cert: /etc/ssl/private/tls.crt
+          admin_ssl_cert_key: /etc/ssl/private/tls.key
+          admin_ssl_ca_cert: /etc/ssl/private/ca.crt
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: apisix
+  namespace: tls
+  labels:
+    role: gateway
+spec:
+  containers:
+    - name: apisix
+      image: apache/apisix:3.2.0-debian
+      ports:
+        - containerPort: 9443
+        - containerPort: 9180
+      volumeMounts:
+        - name: config
+          mountPath: /usr/local/apisix/conf/config.yaml
+          subPath: config.yaml
+        - name: ssl
+          mountPath: /etc/ssl/private
+        - name: etcd-client
+          mountPath: /etc/ssl/certs
+  volumes:
+    - name: config
+      configMap:
+        name: apisix-config
+    - name: ssl
+      secret:
+        secretName: apisix-server-secret
+    - name: etcd-client
+      secret:
+        secretName: apisix-client-secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: apisix
+  namespace: tls
+spec:
+  type: NodePort
+  ports:
+    - port: 9443
+      nodePort: 32443
+  selector:
+    role: gateway
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: admin
+  namespace: tls
+spec:
+  type: NodePort
+  ports:
+    - port: 9180
+      nodePort: 32180
+  selector:
+    role: gateway
